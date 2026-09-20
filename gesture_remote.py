@@ -95,6 +95,9 @@ def detect_gesture(hand):
     return None
 
 
+TOAST_SECONDS = 2.5
+
+
 def main():
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
@@ -104,7 +107,11 @@ def main():
         raise RuntimeError("Could not open webcam")
 
     last_fired = 0.0
-    previous_gesture = None
+    held_gesture = None
+    held_since = 0.0
+    fired_this_hold = False
+    toast_text = ""
+    toast_until = 0.0
 
     with mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7, min_tracking_confidence=0.5) as hands:
         while True:
@@ -123,13 +130,28 @@ def main():
                 gesture = detect_gesture(landmarks.landmark)
 
             now = time.time()
-            if gesture and gesture != previous_gesture and (now - last_fired) > config.COOLDOWN_SECONDS:
-                artemis_bridge.dispatch(config.GESTURE_INSTRUCTIONS[gesture])
-                last_fired = now
-            previous_gesture = gesture
 
-            status = gesture.upper() if gesture else "..."
-            cv2.putText(frame, status, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if gesture != held_gesture:
+                held_gesture = gesture
+                held_since = now
+                fired_this_hold = False
+
+            held_duration = now - held_since if held_gesture else 0.0
+
+            if (
+                held_gesture
+                and not fired_this_hold
+                and held_duration >= config.HOLD_SECONDS
+                and (now - last_fired) > config.COOLDOWN_SECONDS
+            ):
+                instruction = config.GESTURE_INSTRUCTIONS[held_gesture]
+                artemis_bridge.dispatch(instruction)
+                last_fired = now
+                fired_this_hold = True
+                toast_text = f"Sent: {instruction}"
+                toast_until = now + TOAST_SECONDS
+
+            draw_overlay(frame, held_gesture, held_duration, toast_text if now < toast_until else "")
             cv2.imshow("Gesture Remote", frame)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -137,6 +159,24 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+
+
+def draw_overlay(frame, gesture, held_duration, toast_text):
+    h, w = frame.shape[:2]
+
+    if gesture:
+        progress = min(held_duration / config.HOLD_SECONDS, 1.0)
+        label = gesture.upper() if progress >= 1.0 else f"{gesture.upper()} ({progress * 100:.0f}%)"
+        cv2.putText(frame, label, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        bar_x, bar_y, bar_w, bar_h = 10, 55, 200, 12
+        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (80, 80, 80), 1)
+        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + int(bar_w * progress), bar_y + bar_h), (0, 255, 0), -1)
+    else:
+        cv2.putText(frame, "...", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    if toast_text:
+        cv2.putText(frame, toast_text, (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2)
 
 
 if __name__ == "__main__":

@@ -36,15 +36,29 @@ you cloned above (the one containing `start.bat`).
 pip install -r requirements.txt
 ```
 
-### 4. Run
+### 4. (Optional) Customize gestures
+
+```bash
+python configure.py
+```
+
+Interactively pick a profile, edit which instruction each gesture sends, and tune hold
+time / cooldown / pinch tolerance — no code editing required. Saved to `settings.json`
+(gitignored, per-machine) and merged over the defaults in [config.py](config.py).
+
+### 5. Run
 
 ```bash
 python gesture_remote.py
 ```
 
-Show a gesture to the webcam. After a short cooldown (`config.COOLDOWN_SECONDS`) it
-dispatches the matching instruction from `config.GESTURE_INSTRUCTIONS` to Artemis, which
-drives it on your phone. Press `q` in the video window to quit.
+Hold a gesture steady in front of the webcam. A progress bar fills over
+`HOLD_SECONDS` (0.8s by default) before it fires — this is a deliberate confirmation
+step so a passing hand shape doesn't accidentally lock your phone or send a text. Once
+it fires, a "Sent: ..." toast confirms what was dispatched, and the same gesture can't
+re-fire until `COOLDOWN_SECONDS` has passed. Press `q` in the video window to quit.
+
+**Default profile** (5 gestures, quick actions):
 
 | Gesture | Default instruction |
 |---|---|
@@ -54,10 +68,22 @@ drives it on your phone. Press `q` in the video window to quit.
 | Open palm (all fingers up) | Go to the home screen |
 | Fist | Lock the screen |
 
+**Accessibility profile** (`ACTIVE_PROFILE = "accessibility"` in config.py or via
+`configure.py`): fewer gestures, a longer hold time, and a looser pinch tolerance —
+tuned for tremor or limited hand mobility, favoring high-value one-handed actions over
+gesture variety.
+
+| Gesture | Default instruction |
+|---|---|
+| Open palm | Call `CONTACT_NAME` |
+| Fist | Text `CONTACT_NAME` "I'm okay" |
+| Thumbs up | Open Reminders and read today's reminders |
+
+Set `CONTACT_NAME` in [config.py](config.py) or via `configure.py`.
+
 ## Extending
 
-Add more gestures by writing a detector function in [gesture_remote.py](gesture_remote.py),
-adding it to `GESTURE_DETECTORS`, and adding an entry to `GESTURE_INSTRUCTIONS` in
-[config.py](config.py) — no changes needed in [artemis_bridge.py](artemis_bridge.py).
-Remove an entry from `GESTURE_INSTRUCTIONS` to disable that gesture without touching the
-detection code.
+Add more gestures by writing a detector function in [gesture_remote.py](gesture_remote.py)
+and adding it to `GESTURE_DETECTORS`. Everything else — which gestures are active, their
+instructions, timing — lives in `config.PROFILES` and can be changed per-profile via
+`configure.py` without touching detection code.
