@@ -1,7 +1,11 @@
 # Gesture Remote
 
-Pinch at your webcam to trigger a natural-language action on your Android phone, via
-[Artemis](https://github.com/google/artemis).
+Control your Android phone with webcam hand gestures. A pinch, V-sign, thumbs up, open
+palm, or fist — held for a beat to confirm — dispatches a natural-language instruction to
+[Artemis](https://github.com/google/artemis), which drives it on your connected device.
+
+Includes an accessibility profile (fewer gestures, longer hold, looser tolerance) for
+one-handed high-value actions like calling or texting a contact.
 
 Standalone project — unrelated to any other hand-tracking code.
 
